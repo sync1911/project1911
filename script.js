@@ -239,21 +239,23 @@ function applyColor(value, greenThreshold, yellowThreshold, elementId) {
 }
 
 
-function loadDashboardWithMockData() {
-  const mockData = {
-    purchaseConversionValue: 40000, // Put your desired mock value here
-  };
-  updateDashboardCards(mockData);
-}
 
-// Add this code at the end of your script.js file
-document.addEventListener("DOMContentLoaded", () => {
-  const loadMockDashboardButton = document.getElementById("load-mock-dashboard");
-  if (loadMockDashboardButton) {
-    loadMockDashboardButton.addEventListener("click", loadDashboardWithMockData);
-  } else {
-    console.error("Load Mock Dashboard button not found");
-  }
+
+$(document).ready(function () {
+  $("#chat-input-form").on("submit", function (event) {
+      event.preventDefault();
+
+      let userInput = $("#user-input").val().trim();
+      if (!userInput) return;
+
+      $("#chat-output").append(`<div class="user-message">${userInput}</div>`);
+
+      $.post("/chat", { user_input: userInput }, function (data) {
+          $("#chat-output").append(`<div class="ai-response">${data.ai_response}</div>`);
+      });
+
+      $("#user-input").val("");
+  });
 });
 
 

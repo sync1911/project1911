@@ -1,10 +1,55 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, session
 import facebook
 from functools import wraps
 from aspendos_framework import analyze_metrics
+from flask import Flask, redirect, url_for
+from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
+from facebook_business.api import FacebookAdsApi
+import facebook
+import openai
+from flask import jsonify, request
+
+
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+openai.api_key = OPENAI_API_KEY
+
 
 app = Flask(__name__)
-app.secret_key = '684c38d157348bb17a0d30310cf22a16'  # Replace with a strong secret key
+
+FB_APP_ID = os.environ.get('FB_APP_ID')
+FB_APP_SECRET = os.environ.get('FB_APP_SECRET')
+FB_ACCESS_TOKEN = os.environ.get('FB_ACCESS_TOKEN')
+
+graph = facebook.GraphAPI(access_token=FB_ACCESS_TOKEN, version="3.0")
+
+def get_ad_account_id():
+    accounts = graph.get_connections(id='me', connection_name='adaccounts')['data']
+    return accounts[0]['id']
+
+def get_facebook_metrics():
+    ad_account_id = get_ad_account_id()
+    params = {
+        'fields': 'account_id,account_name,spend,impressions,clicks,link_clicks,actions,reach',
+        'level': 'account',
+        'date_preset': 'last_90d'
+    }
+    response = graph.get_connections(id=ad_account_id, connection_name='insights', **params)
+    metrics = response['data'][0]
+    
+    # Process the metrics and create a dictionary with the required metrics
+    processed_metrics = {
+        "Total Outbound Clicks": metrics["clicks"],
+        "Total Link Clicks": metrics["link_clicks"],
+        "Total Sales": metrics["actions"]["purchase"],
+        "Total Content Views": metrics["actions"]["content_view"],
+        "Total Add to Cart": metrics["actions"]["add_to_cart"],
+        "Total Initiate Checkouts": metrics["actions"]["initiate_checkout"],
+        "Total Purchases": metrics["actions"]["purchase"]
+    }
+
+    return processed_metrics
 
 def login_required(f):
     @wraps(f)
@@ -18,15 +63,13 @@ def login_required(f):
 def index():
     return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        access_token = request.form.get('access_token')
-        graph = facebook.GraphAPI(access_token=access_token, version="3.0")
-        user = graph.get_object("me")
-        session['user_id'] = user['id']
-        return redirect(url_for('analytics'))
-    return render_template('dashboard.html')
+@app.route("/facebook_login")
+def facebook_login():
+    if not facebook.authorized:
+        return redirect(url_for("facebook.login"))
+    resp = facebook.get("/me")
+    return f"Hello, {resp.json()['name']}!"
+
 
 @app.route('/logout')
 def logout():
@@ -52,7 +95,9 @@ def analytics():
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html')
+    metrics = get_facebook_metrics()
+    rates, colors = analyze_metrics(metrics)
+    return render_template('dashboard.html', metrics=metrics, rates=rates, colors=colors)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

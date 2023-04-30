@@ -158,34 +158,26 @@
 
          <!-- Begin  of Main Content -->
 
-
-
          <!DOCTYPE html>
          <html lang="en">
          <head>
              <meta charset="UTF-8">
              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-             <title>ChatGPT-like Chat</title>
-             <link rel="stylesheet" href="chat.css">
+             <title>Aspendos Chat AI</title>
+             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+             <script src="{{ url_for('static', filename='script.js') }}"></script>
          </head>
          <body>
-             <div class="chat-container">
-                 <div class="chat-header">
-                     <h2>ChatGPT-like Chat</h2>
-                 </div>
-                 <div class="chat-box" id="chat-box"></div>
-                 <form class="chat-input-form" id="chat-input-form">
-                     <input type="text" placeholder="Type your message here..." id="chat-input" autocomplete="off">
+             <div id="chat-container">
+                 <div id="chat-output"></div>
+                 <form id="chat-input-form">
+                     <input type="text" id="user-input" name="user_input" placeholder="Type your message...">
                      <button type="submit">Send</button>
                  </form>
              </div>
-             <script src="chat.js"></script>
          </body>
          </html>
          
-
-
-
 
 
 
@@ -249,6 +241,42 @@
     <!-- Page level custom scripts -->
     <script src="js/demo/chart-area-demo.js"></script>
     <script src="js/demo/chart-pie-demo.js"></script>
+
+    <script>
+        let metrics = JSON.parse(decodeURIComponent("{{ metrics }}"));
+        let rates = JSON.parse(decodeURIComponent("{{ rates }}"));
+        let colors = JSON.parse(decodeURIComponent("{{ colors }}"));
+    
+        function startChatConversation() {
+            let chatData = `Facebook Audit Metrics:\n\nMetrics:\n${JSON.stringify(metrics, null, 2)}\n\nRates:\n${JSON.stringify(rates, null, 2)}\n\nColors:\n${JSON.stringify(colors, null, 2)}\n\n`;
+    
+            $("#chat-output").append(`<div class="chat-data">${chatData}</div>`);
+    
+            $.post("/chat", { user_input: chatData }, function (data) {
+                $("#chat-output").append(`<div class="ai-response">${data.ai_response}</div>`);
+            });
+        }
+    
+        $(document).ready(function () {
+            startChatConversation();
+    
+            $("#chat-input-form").on("submit", function (event) {
+                event.preventDefault();
+    
+                let userInput = $("#user-input").val().trim();
+                if (!userInput) return;
+    
+                $("#chat-output").append(`<div class="user-message">${userInput}</div>`);
+    
+                $.post("/chat", { user_input: userInput }, function (data) {
+                    $("#chat-output").append(`<div class="ai-response">${data.ai_response}</div>`);
+                });
+    
+                $("#user-input").val("");
+            });
+        });
+    </script>
+    
 
 </body>
 
